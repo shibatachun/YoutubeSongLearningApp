@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
-import type { Cue, Video } from '../api';
+import type { Video } from '../api';
 import { useNavigate } from 'react-router-dom';
 
 export default function Home(){
@@ -23,10 +23,18 @@ export default function Home(){
       <input value={vid} onChange={e=>setVid(e.target.value)} placeholder="YouTube videoId (如 dQw4w9WgXcQ)" />
       <button onClick={onAdd} style={{marginLeft:8}}>添加</button>
 
-      <ul style={{marginTop:16}}>
+      <ul style={{marginTop:16, display:'flex', flexDirection:'column', gap:8}}>
         {list.map(v =>
           <li key={v.id}>
-            <a onClick={()=>nav(`/v/${v.id}`)} style={{cursor:'pointer'}}>{v.id}</a>
+            <a
+              onClick={()=>nav(`/v/${v.id}`)}
+              style={{cursor:'pointer', display:'inline-flex', flexDirection:'column', gap:4}}
+            >
+              <span style={{fontWeight:600}}>{v.title || v.id}</span>
+              {(v.channel || v.id) && (
+                <small style={{color:'#666'}}>{v.channel || `YouTube · ${v.id}`}</small>
+              )}
+            </a>
           </li>
         )}
         {list.length===0 && <p>暂时没有视频，先添加一个吧。</p>}

@@ -7,6 +7,7 @@ export interface Video {
   id: string;
   title?: string;
   thumb?: string;
+  channel?: string;
   vttUrl?: string;
   cues?: Cue[];
   timedtext?: TimedText;
@@ -48,7 +49,7 @@ export async function upsertVideo(v: Partial<Video> & { id: string }) {
   const db = await loadDB();
   const i = db.videos.findIndex(x => x.id === v.id);
   if (i >= 0) db.videos[i] = { ...db.videos[i], ...v };
-  else db.videos.push({ id: v.id, ...v });
+  else db.videos.push({ ...v });
   await saveDB(db);
   return (await getVideo(v.id))!;
 }
