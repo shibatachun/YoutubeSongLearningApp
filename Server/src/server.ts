@@ -2,12 +2,38 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import { listVideos, getVideo, upsertVideo, deleteVideo } from './db';
+import ytdl from 'ytdl-core';
+import { listVideos, getVideo, upsertVideo, deleteVideo, type Video as VideoRecord } from './db';
 import { parseWebVTT } from './vtt';
 import { youtubeRouter } from './routes/youtube';
 
 const app = express();
 const PORT = Number(process.env.PORT || 5173);
+
+async function enrichVideoMeta(video: VideoRecord): Promise<VideoRecord> {
+  if (video.title && video.thumb && video.channel) return video;
+  try {
+    const info = await ytdl.getBasicInfo(video.id);
+    const details = info.videoDetails;
+    const thumbs = details.thumbnails ?? [];
+    let bestThumbEntry: (typeof thumbs)[number] | undefined;
+    for (const t of thumbs) {
+      if (!bestThumbEntry || (t.width ?? 0) > (bestThumbEntry.width ?? 0)) {
+        bestThumbEntry = t;
+      }
+    }
+    const bestThumb = bestThumbEntry?.url;
+    return await upsertVideo({
+      id: video.id,
+      title: video.title ?? details.title,
+      thumb: video.thumb ?? bestThumb,
+      channel: video.channel ?? details.author?.name ?? details.ownerChannelName,
+    });
+  } catch (e) {
+    console.warn(`[meta] failed to fetch metadata for ${video.id}:`, e);
+    return video;
+  }
+}
 
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
@@ -19,22 +45,33 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, msg: 'server is up' }
 
 // 列表
 app.get('/api/videos', async (_req, res) => {
-  res.json(await listVideos());
+  const videos = await listVideos();
+  const enriched: VideoRecord[] = [];
+  for (const video of videos) {
+    enriched.push(await enrichVideoMeta(video));
+  }
+  res.json(enriched);
 });
 
 // 详情
 app.get('/api/videos/:id', async (req, res) => {
-  const v = await getVideo(req.params.id);
-  if (!v) return res.status(404).json({ ok: false, msg: 'not found' });
+  const found = await getVideo(req.params.id);
+  if (!found) return res.status(404).json({ ok: false, msg: 'not found' });
+  const v = await enrichVideoMeta(found);
   res.json(v);
 });
 
 // 新建（只需要 id）
 app.post('/api/videos', async (req, res) => {
-  const { id, title, thumb } = req.body || {};
+  const { id, title, thumb, channel } = req.body || {};
   if (!id) return res.status(400).json({ ok: false, msg: 'id required' });
-  const v = await upsertVideo({ id, title, thumb });
-  res.json(v);
+  const payload: Partial<VideoRecord> & { id: string } = { id };
+  if (title) payload.title = title;
+  if (thumb) payload.thumb = thumb;
+  if (channel) payload.channel = channel;
+  const created = await upsertVideo(payload);
+  const enriched = await enrichVideoMeta(created);
+  res.json(enriched);
 });
 
 // 更新（合并）

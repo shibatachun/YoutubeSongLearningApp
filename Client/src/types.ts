@@ -4,6 +4,7 @@ export interface Video {
   id: string;
   title?: string;
   thumb?: string;
+  channel?: string;
   vttUrl?: string;
   cues?: Cue[];
   timedtext?: TimedText;

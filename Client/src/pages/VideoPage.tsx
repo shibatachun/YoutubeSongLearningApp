@@ -10,7 +10,7 @@ const fmt = (t:number) => {
   const h = Math.floor(t/3600), m = Math.floor((t%3600)/60), s = Math.floor(t%60);
   return (h?`${h}:`:'') + `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
 };
-const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+const fallbackThumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
 
 type TrackItem = { languageCode: string; kind?: 'asr'; label: string; translatable: boolean };
 
@@ -41,6 +41,12 @@ export default function VideoPage(){
   const setRef = (idx: number) => (el: HTMLDivElement | null) => { itemRefs.current[idx] = el; };
 
   useEffect(() => { api.get(id).then(setV); }, [id]);
+  useEffect(() => {
+    const prev = document.title;
+    const display = v?.title || v?.id || id;
+    if (display) document.title = `${display} - Video + Subtitles`;
+    return () => { document.title = prev; };
+  }, [v?.title, v?.id, id]);
   useEffect(() => { api.list().then(setAll); }, []);
 
   // ⬇️ 拉取可用字幕轨（随视频切换）
@@ -141,6 +147,14 @@ export default function VideoPage(){
     <div className="vp-container">
       {/* 左列：播放器 + 字幕面板 */}
       <div className="vp-main">
+        <div className="vp-card vp-meta">
+          <div className="vp-meta__body">
+            <div className="vp-meta__title">{v ? (v.title || v.id) : '加载中…'}</div>
+            {(v?.channel || v?.id) && (
+              <div className="vp-meta__sub">{v?.channel || `YouTube · ${v?.id ?? id}`}</div>
+            )}
+          </div>
+        </div>
         <div className="vp-card">
           <div className="vp-player">
             <div id="yt-player" />
@@ -246,7 +260,7 @@ export default function VideoPage(){
               onClick={() => nav(`/v/${vv.id}`)}
               title={vv.title || vv.id}
             >
-              <img className="vp-side-thumb" src={thumb(vv.id)} alt={vv.title || vv.id} loading="lazy" />
+              <img className="vp-side-thumb" src={vv.thumb || fallbackThumb(vv.id)} alt={vv.title || vv.id} loading="lazy" />
               <div>
                 <div className="vp-side-title">{vv.title || vv.id}</div>
                 {vv.channel && <div className="vp-side-sub">{vv.channel}</div>}

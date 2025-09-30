@@ -3,7 +3,7 @@ const BASE = import.meta.env.VITE_API_URL || ''; // 直连后端或走代理
 const j = (r: Response) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); };
 
 export type Cue = { start:number; end:number; text:string };
-export type Video = { id:string; title?:string; thumb?:string; cues?:Cue[]; channel:string };
+export type Video = { id:string; title?:string; thumb?:string; cues?:Cue[]; channel?:string };
 
 export const api = {
   list: () => fetch(`${BASE}/api/videos`).then(j),
